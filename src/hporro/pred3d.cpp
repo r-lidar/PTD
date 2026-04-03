@@ -40,6 +40,9 @@
 #ifdef LINUX
 #include <fpu_control.h>
 #endif /* LINUX */
+#ifdef __APPLE__
+#include <fenv.h>
+#endif /* __APPLE__ */
 
 #define REAL double
 
@@ -421,6 +424,9 @@ REAL exactinit()
 #ifdef LINUX
   int cword;
 #endif /* LINUX */
+#ifdef __APPLE__
+  fenv_t env;
+#endif /* __APPLE__ */
 
 #ifdef CPU86
 #ifdef SINGLE
@@ -439,6 +445,20 @@ REAL exactinit()
 #endif /* not SINGLE */
   _FPU_SETCW(cword);
 #endif /* LINUX */
+#ifdef __APPLE__
+  /* Set FPU to use 53-bit precision for double on x86-64 macOS.
+     This prevents use of 80-bit extended precision which can cause
+     inconsistencies in geometric predicates. */
+  fegetenv(&env);
+#ifdef SINGLE
+  env.__control &= ~0x0300;  /* Clear precision control bits */
+  env.__control |= 0x0000;   /* Set to 24-bit precision (float) */
+#else /* not SINGLE */
+  env.__control &= ~0x0300;  /* Clear precision control bits */
+  env.__control |= 0x0200;   /* Set to 53-bit precision (double) */
+#endif /* not SINGLE */
+  fesetenv(&env);
+#endif /* __APPLE__ */
 
   every_other = 1;
   half = 0.5;
@@ -506,6 +526,9 @@ void exactinit(int verbose, int noexact, int o3dfilter, int ispfilter,
 #ifdef LINUX
   int cword;
 #endif /* LINUX */
+#ifdef __APPLE__
+  fenv_t env;
+#endif /* __APPLE__ */
 
 #ifdef CPU86
 #ifdef SINGLE
@@ -524,6 +547,20 @@ void exactinit(int verbose, int noexact, int o3dfilter, int ispfilter,
 #endif /* not SINGLE */
   _FPU_SETCW(cword);
 #endif /* LINUX */
+#ifdef __APPLE__
+  /* Set FPU to use 53-bit precision for double on x86-64 macOS.
+     This prevents use of 80-bit extended precision which can cause
+     inconsistencies in geometric predicates. */
+  fegetenv(&env);
+#ifdef SINGLE
+  env.__control &= ~0x0300;  /* Clear precision control bits */
+  env.__control |= 0x0000;   /* Set to 24-bit precision (float) */
+#else /* not SINGLE */
+  env.__control &= ~0x0300;  /* Clear precision control bits */
+  env.__control |= 0x0200;   /* Set to 53-bit precision (double) */
+#endif /* not SINGLE */
+  fesetenv(&env);
+#endif /* __APPLE__ */
 
   /*if (verbose) {
     printf("  Initializing robust predicates.\n");
