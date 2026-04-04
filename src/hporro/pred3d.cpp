@@ -40,9 +40,6 @@
 #ifdef LINUX
 #include <fpu_control.h>
 #endif /* LINUX */
-#ifdef __APPLE__
-#include <fenv.h>
-#endif /* __APPLE__ */
 
 #define REAL double
 
@@ -425,7 +422,7 @@ REAL exactinit()
   int cword;
 #endif /* LINUX */
 #ifdef __APPLE__
-  fenv_t env;
+  unsigned short cw;
 #endif /* __APPLE__ */
 
 #ifdef CPU86
@@ -449,15 +446,17 @@ REAL exactinit()
   /* Set FPU to use 53-bit precision for double on x86-64 macOS.
      This prevents use of 80-bit extended precision which can cause
      inconsistencies in geometric predicates. */
-  fegetenv(&env);
+#if defined(__i386__) || defined(__x86_64__)
+  /* x86/x86-64: Use inline assembly to set FPU control word */
 #ifdef SINGLE
-  env.__control &= ~0x0300;  /* Clear precision control bits */
-  env.__control |= 0x0000;   /* Set to 24-bit precision (float) */
+  cw = 0x007f;  /* 24-bit precision (single), round to nearest, all exceptions masked */
 #else /* not SINGLE */
-  env.__control &= ~0x0300;  /* Clear precision control bits */
-  env.__control |= 0x0200;   /* Set to 53-bit precision (double) */
+  cw = 0x027f;  /* 53-bit precision (double), round to nearest, all exceptions masked */
 #endif /* not SINGLE */
-  fesetenv(&env);
+  __asm__ __volatile__ ("fldcw %0" : : "m" (cw));
+#endif /* x86/x86-64 */
+  /* Note: On ARM-based Macs, this is not needed as they use IEEE 754 compliant
+     floating-point without extended precision. */
 #endif /* __APPLE__ */
 
   every_other = 1;
@@ -527,7 +526,7 @@ void exactinit(int verbose, int noexact, int o3dfilter, int ispfilter,
   int cword;
 #endif /* LINUX */
 #ifdef __APPLE__
-  fenv_t env;
+  unsigned short cw;
 #endif /* __APPLE__ */
 
 #ifdef CPU86
@@ -551,15 +550,17 @@ void exactinit(int verbose, int noexact, int o3dfilter, int ispfilter,
   /* Set FPU to use 53-bit precision for double on x86-64 macOS.
      This prevents use of 80-bit extended precision which can cause
      inconsistencies in geometric predicates. */
-  fegetenv(&env);
+#if defined(__i386__) || defined(__x86_64__)
+  /* x86/x86-64: Use inline assembly to set FPU control word */
 #ifdef SINGLE
-  env.__control &= ~0x0300;  /* Clear precision control bits */
-  env.__control |= 0x0000;   /* Set to 24-bit precision (float) */
+  cw = 0x007f;  /* 24-bit precision (single), round to nearest, all exceptions masked */
 #else /* not SINGLE */
-  env.__control &= ~0x0300;  /* Clear precision control bits */
-  env.__control |= 0x0200;   /* Set to 53-bit precision (double) */
+  cw = 0x027f;  /* 53-bit precision (double), round to nearest, all exceptions masked */
 #endif /* not SINGLE */
-  fesetenv(&env);
+  __asm__ __volatile__ ("fldcw %0" : : "m" (cw));
+#endif /* x86/x86-64 */
+  /* Note: On ARM-based Macs, this is not needed as they use IEEE 754 compliant
+     floating-point without extended precision. */
 #endif /* __APPLE__ */
 
   /*if (verbose) {
